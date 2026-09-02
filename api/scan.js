@@ -134,10 +134,10 @@ export function getColumnIndex(headers, columnName) {
 export function findTicketOwnerInRows(rows, ticketNumber) {
   const headers = rows[0] || [];
   const nomeIndex = getColumnIndex(headers, 'nome');
-  const orderNumberIndex = getColumnIndex(headers, 'order_number');
+  const ticketCodeIndex = getColumnIndex(headers, 'codigo');
   const situacaoIndex = getColumnIndex(headers, 'situacao');
 
-  if (nomeIndex === -1 || orderNumberIndex === -1) {
+  if (nomeIndex === -1 || ticketCodeIndex === -1) {
     return {
       error: {
         status: 500,
@@ -152,7 +152,7 @@ export function findTicketOwnerInRows(rows, ticketNumber) {
 
   const normalizedTicketNumber = normalizeTicketNumber(ticketNumber);
   const row = rows.slice(1).find((currentRow) => (
-    normalizeTicketNumber(currentRow[orderNumberIndex]) === normalizedTicketNumber
+    normalizeTicketNumber(currentRow[ticketCodeIndex]) === normalizedTicketNumber
   ));
 
   if (!row) {
