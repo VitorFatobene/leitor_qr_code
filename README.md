@@ -24,9 +24,10 @@ GOOGLE_CLIENT_EMAIL=
 GOOGLE_PRIVATE_KEY=
 GOOGLE_SPREADSHEET_ID=
 GOOGLE_SHEET_NAME=
+GOOGLE_DATA_SHEET_NAME=
 ```
 
-Na Vercel, configure as quatro variáveis acima em Project Settings > Environment Variables. A planilha do Google Sheets precisa ser compartilhada com o e-mail da service account usando permissão de editor.
+Na Vercel, configure as cinco variáveis acima em Project Settings > Environment Variables. A planilha do Google Sheets precisa ser compartilhada com o e-mail da service account usando permissão de editor.
 
 ## Dados gravados
 

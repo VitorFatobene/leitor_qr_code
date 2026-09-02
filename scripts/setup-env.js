@@ -21,6 +21,7 @@ const envContent = [
   `GOOGLE_PRIVATE_KEY="${credentials.private_key.replace(/\n/g, '\\n')}"`,
   'GOOGLE_SPREADSHEET_ID=',
   'GOOGLE_SHEET_NAME=',
+  'GOOGLE_DATA_SHEET_NAME=dados',
   '',
 ].join('\n');
 

@@ -14,19 +14,18 @@ const initialResult = {
 };
 
 function App() {
-  const nomeInputRef = useRef(null);
-  const donationFieldsRef = useRef({ nome: '', quantidadeKgInput: '' });
+  const quantidadeInputRef = useRef(null);
+  const donationFieldsRef = useRef({ quantidadeKgInput: '' });
   const isSavingRef = useRef(false);
   const [scanResult, setScanResult] = useState(initialResult);
   const [isSaving, setIsSaving] = useState(false);
-  const [nome, setNome] = useState('');
   const [quantidadeKgInput, setQuantidadeKgInput] = useState('');
-  const donationValidation = validateDonationFields({ nome, quantidadeKgInput });
+  const donationValidation = validateDonationFields({ quantidadeKgInput });
   const canStartScanner = donationValidation.isValid;
 
   useEffect(() => {
-    donationFieldsRef.current = { nome, quantidadeKgInput };
-  }, [nome, quantidadeKgInput]);
+    donationFieldsRef.current = { quantidadeKgInput };
+  }, [quantidadeKgInput]);
 
   useEffect(() => {
     isSavingRef.current = isSaving;
@@ -38,9 +37,9 @@ function App() {
     if (isSavingRef.current || !currentDonation.isValid) {
       setScanResult({
         qrValue: '',
-        nome: currentDonation.values.nome,
+        nome: '',
         quantidadeKg: currentDonation.values.quantidadeKg,
-        status: 'Preencha nome e quantidade antes de registrar o ingresso.',
+        status: 'Preencha a quantidade antes de registrar o ingresso.',
         type: 'error',
       });
       return false;
@@ -50,35 +49,33 @@ function App() {
     setIsSaving(true);
     setScanResult({
       qrValue: ticketNumber,
-      nome: currentDonation.values.nome,
+      nome: '',
       quantidadeKg: currentDonation.values.quantidadeKg,
       status: 'Enviando para a planilha...',
       type: 'loading',
     });
 
     try {
-      await saveScan({
-        nome: currentDonation.values.nome,
+      const savedScan = await saveScan({
         quantidadeKg: currentDonation.values.quantidadeKg,
         qrValue: ticketNumber,
       });
 
       setScanResult({
         qrValue: ticketNumber,
-        nome: currentDonation.values.nome,
+        nome: savedScan.nome || savedScan.saved?.nome || '',
         quantidadeKg: currentDonation.values.quantidadeKg,
         status: 'Registro salvo com sucesso.',
         type: 'success',
       });
-      setNome('');
       setQuantidadeKgInput('');
-      donationFieldsRef.current = { nome: '', quantidadeKgInput: '' };
-      window.setTimeout(() => nomeInputRef.current?.focus(), 0);
+      donationFieldsRef.current = { quantidadeKgInput: '' };
+      window.setTimeout(() => quantidadeInputRef.current?.focus(), 0);
       return true;
     } catch (error) {
       setScanResult({
         qrValue: ticketNumber,
-        nome: currentDonation.values.nome,
+        nome: '',
         quantidadeKg: currentDonation.values.quantidadeKg,
         status: error.message || 'Erro ao salvar na planilha.',
         type: 'error',
@@ -95,7 +92,7 @@ function App() {
 
     setScanResult({
       qrValue: '',
-      nome: currentDonation.values.nome,
+      nome: '',
       quantidadeKg: currentDonation.values.quantidadeKg,
       status: 'QR Code inválido ou não reconhecido.',
       type: 'error',
@@ -121,12 +118,10 @@ function App() {
           </div>
 
           <DonationForm
-            nome={nome}
             quantidadeKgInput={quantidadeKgInput}
             errors={donationValidation.errors}
-            onNomeChange={setNome}
             onQuantidadeChange={setQuantidadeKgInput}
-            ref={nomeInputRef}
+            ref={quantidadeInputRef}
           />
 
           <Scanner

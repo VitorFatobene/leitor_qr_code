@@ -39,6 +39,11 @@ function getSheetRange(sheetName) {
   return `'${safeSheetName}'!A:E`;
 }
 
+function getWholeSheetRange(sheetName) {
+  const safeSheetName = sheetName.replace(/'/g, "''");
+  return `'${safeSheetName}'`;
+}
+
 function getCredentials() {
   const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
   const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
@@ -53,12 +58,13 @@ function getCredentials() {
 function getSpreadsheetConfig() {
   const spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID?.trim();
   const sheetName = process.env.GOOGLE_SHEET_NAME?.trim();
+  const dataSheetName = process.env.GOOGLE_DATA_SHEET_NAME?.trim();
 
-  if (!spreadsheetId || !sheetName) {
+  if (!spreadsheetId || !sheetName || !dataSheetName) {
     return null;
   }
 
-  return { spreadsheetId, sheetName };
+  return { spreadsheetId, sheetName, dataSheetName };
 }
 
 function sendError(response, status, message) {
@@ -113,6 +119,87 @@ function getGoogleErrorResponse(error) {
   };
 }
 
+function normalizeHeader(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function normalizeTicketNumber(value) {
+  return String(value || '').trim().toUpperCase();
+}
+
+export function getColumnIndex(headers, columnName) {
+  return headers.findIndex((header) => normalizeHeader(header) === columnName);
+}
+
+export function findTicketOwnerInRows(rows, ticketNumber) {
+  const headers = rows[0] || [];
+  const nomeIndex = getColumnIndex(headers, 'nome');
+  const orderNumberIndex = getColumnIndex(headers, 'order_number');
+  const situacaoIndex = getColumnIndex(headers, 'situacao');
+
+  if (nomeIndex === -1 || orderNumberIndex === -1) {
+    return {
+      error: {
+        status: 500,
+        message: 'A aba de dados está configurada incorretamente.',
+      },
+    };
+  }
+
+  if (situacaoIndex === -1) {
+    console.warn('Coluna situacao não encontrada na aba de dados.');
+  }
+
+  const normalizedTicketNumber = normalizeTicketNumber(ticketNumber);
+  const row = rows.slice(1).find((currentRow) => (
+    normalizeTicketNumber(currentRow[orderNumberIndex]) === normalizedTicketNumber
+  ));
+
+  if (!row) {
+    return {
+      error: {
+        status: 404,
+        message: 'Ingresso não encontrado.',
+      },
+    };
+  }
+
+  if (
+    situacaoIndex !== -1 &&
+    String(row[situacaoIndex] || '').trim().toLowerCase() !== 'ativo'
+  ) {
+    return {
+      error: {
+        status: 400,
+        message: 'Ingresso não está ativo.',
+      },
+    };
+  }
+
+  const nome = String(row[nomeIndex] || '').trim().slice(0, 150);
+
+  if (!nome) {
+    return {
+      error: {
+        status: 500,
+        message: 'A aba de dados está configurada incorretamente.',
+      },
+    };
+  }
+
+  return { nome };
+}
+
+async function findTicketOwner({ sheets, spreadsheetId, dataSheetName, ticketNumber }) {
+  const result = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: getWholeSheetRange(dataSheetName),
+  });
+
+  const rows = result.data.values || [];
+  return findTicketOwnerInRows(rows, ticketNumber);
+}
+
 export default async function handler(request, response) {
   setCorsHeaders(response);
 
@@ -125,12 +212,10 @@ export default async function handler(request, response) {
   }
 
   const {
-    nome,
     quantidadeKg,
     qrValue,
   } = request.body || {};
 
-  const cleanNome = String(nome || '').trim().slice(0, 150);
   const parsedQuantidadeKg = Number(quantidadeKg);
   const cleanQrValue = String(qrValue || '').trim();
   const ticketNumber = cleanQrValue.includes('/check-in/')
@@ -141,8 +226,8 @@ export default async function handler(request, response) {
     return sendError(response, 400, 'Requisição inválida.');
   }
 
-  if (!cleanNome || !Number.isFinite(parsedQuantidadeKg) || parsedQuantidadeKg <= 0) {
-    return sendError(response, 400, 'Preencha corretamente nome e quantidade doada.');
+  if (!Number.isFinite(parsedQuantidadeKg) || parsedQuantidadeKg <= 0) {
+    return sendError(response, 400, 'Preencha corretamente a quantidade doada.');
   }
 
   try {
@@ -165,6 +250,21 @@ export default async function handler(request, response) {
     });
 
     const sheets = google.sheets({ version: 'v4', auth });
+    const ticketOwner = await findTicketOwner({
+      sheets,
+      spreadsheetId: spreadsheetConfig.spreadsheetId,
+      dataSheetName: spreadsheetConfig.dataSheetName,
+      ticketNumber,
+    });
+
+    if (ticketOwner.error) {
+      return sendError(
+        response,
+        ticketOwner.error.status,
+        ticketOwner.error.message,
+      );
+    }
+
     const { date, time } = formatDateTime();
 
     await sheets.spreadsheets.values.append({
@@ -173,17 +273,20 @@ export default async function handler(request, response) {
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
       requestBody: {
-        values: [[date, time, cleanNome, parsedQuantidadeKg, ticketNumber]],
+        values: [[date, time, ticketOwner.nome, parsedQuantidadeKg, ticketNumber]],
       },
     });
 
     return response.status(200).json({
       success: true,
-      message: 'Salvo na planilha com sucesso.',
+      message: 'Registro salvo com sucesso.',
+      nome: ticketOwner.nome,
+      ingresso: ticketNumber,
+      quantidadeKg: parsedQuantidadeKg,
       saved: {
         date,
         time,
-        nome: cleanNome,
+        nome: ticketOwner.nome,
         quantidadeKg: parsedQuantidadeKg,
         qrValue: ticketNumber,
       },

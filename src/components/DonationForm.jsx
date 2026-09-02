@@ -1,25 +1,11 @@
 import { forwardRef } from 'react';
 
 const DonationForm = forwardRef(function DonationForm(
-  { nome, quantidadeKgInput, errors, onNomeChange, onQuantidadeChange },
-  nomeInputRef,
+  { quantidadeKgInput, errors, onQuantidadeChange },
+  quantidadeInputRef,
 ) {
   return (
     <div className="donation-form">
-      <label>
-        <span>Nome</span>
-        <input
-          type="text"
-          value={nome}
-          onChange={(event) => onNomeChange(event.target.value)}
-          placeholder="João da Silva"
-          maxLength={150}
-          autoComplete="name"
-          ref={nomeInputRef}
-        />
-        {errors.nome && <small className="field-error">{errors.nome}</small>}
-      </label>
-
       <label>
         <span>Quantidade doada (kg)</span>
         <input
@@ -28,6 +14,7 @@ const DonationForm = forwardRef(function DonationForm(
           onChange={(event) => onQuantidadeChange(event.target.value)}
           placeholder="12,5"
           inputMode="decimal"
+          ref={quantidadeInputRef}
         />
         {errors.quantidadeKg && <small className="field-error">{errors.quantidadeKg}</small>}
       </label>
