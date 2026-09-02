@@ -1,4 +1,9 @@
-function DonationForm({ nome, quantidadeKgInput, errors, onNomeChange, onQuantidadeChange }) {
+import { forwardRef } from 'react';
+
+const DonationForm = forwardRef(function DonationForm(
+  { nome, quantidadeKgInput, errors, onNomeChange, onQuantidadeChange },
+  nomeInputRef,
+) {
   return (
     <div className="donation-form">
       <label>
@@ -10,6 +15,7 @@ function DonationForm({ nome, quantidadeKgInput, errors, onNomeChange, onQuantid
           placeholder="João da Silva"
           maxLength={150}
           autoComplete="name"
+          ref={nomeInputRef}
         />
         {errors.nome && <small className="field-error">{errors.nome}</small>}
       </label>
@@ -27,6 +33,6 @@ function DonationForm({ nome, quantidadeKgInput, errors, onNomeChange, onQuantid
       </label>
     </div>
   );
-}
+});
 
 export default DonationForm;

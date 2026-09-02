@@ -7,6 +7,9 @@ const DUPLICATE_DELAY_MS = 3000;
 
 function Scanner({ disabled, isSaving, onInvalidScan, onScan, onPermissionError }) {
   const scannerRef = useRef(null);
+  const onInvalidScanRef = useRef(onInvalidScan);
+  const onPermissionErrorRef = useRef(onPermissionError);
+  const onScanRef = useRef(onScan);
   const lastReadRef = useRef({ value: '', time: 0 });
   const scanLockRef = useRef(false);
   const [isRunning, setIsRunning] = useState(false);
@@ -17,6 +20,12 @@ function Scanner({ disabled, isSaving, onInvalidScan, onScan, onPermissionError 
       stopScanner();
     };
   }, []);
+
+  useEffect(() => {
+    onInvalidScanRef.current = onInvalidScan;
+    onPermissionErrorRef.current = onPermissionError;
+    onScanRef.current = onScan;
+  }, [onInvalidScan, onPermissionError, onScan]);
 
   async function stopScanner() {
     if (!scannerRef.current) {
@@ -64,7 +73,7 @@ function Scanner({ disabled, isSaving, onInvalidScan, onScan, onPermissionError 
     } catch (error) {
       console.error(error);
       setCameraMessage('Não foi possível acessar a câmera.');
-      onPermissionError();
+      onPermissionErrorRef.current();
       await stopScanner();
     }
   }
@@ -78,7 +87,7 @@ function Scanner({ disabled, isSaving, onInvalidScan, onScan, onPermissionError 
       }
 
       scanLockRef.current = true;
-      onInvalidScan();
+      onInvalidScanRef.current();
 
       if (scannerRef.current?.isScanning) {
         scannerRef.current.pause(true);
@@ -114,7 +123,7 @@ function Scanner({ disabled, isSaving, onInvalidScan, onScan, onPermissionError 
       scannerRef.current.pause(true);
     }
 
-    await onScan(ticketNumber);
+    await onScanRef.current(ticketNumber);
 
     window.setTimeout(() => {
       scanLockRef.current = false;

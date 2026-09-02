@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Scanner from './components/Scanner.jsx';
 import ScanResult from './components/ScanResult.jsx';
 import DonationForm from './components/DonationForm.jsx';
@@ -14,6 +14,9 @@ const initialResult = {
 };
 
 function App() {
+  const nomeInputRef = useRef(null);
+  const donationFieldsRef = useRef({ nome: '', quantidadeKgInput: '' });
+  const isSavingRef = useRef(false);
   const [scanResult, setScanResult] = useState(initialResult);
   const [isSaving, setIsSaving] = useState(false);
   const [nome, setNome] = useState('');
@@ -21,20 +24,29 @@ function App() {
   const donationValidation = validateDonationFields({ nome, quantidadeKgInput });
   const canStartScanner = donationValidation.isValid;
 
-  async function handleScan(ticketNumber) {
-    const currentDonation = validateDonationFields({ nome, quantidadeKgInput });
+  useEffect(() => {
+    donationFieldsRef.current = { nome, quantidadeKgInput };
+  }, [nome, quantidadeKgInput]);
 
-    if (isSaving || !currentDonation.isValid) {
+  useEffect(() => {
+    isSavingRef.current = isSaving;
+  }, [isSaving]);
+
+  const handleScan = useCallback(async (ticketNumber) => {
+    const currentDonation = validateDonationFields(donationFieldsRef.current);
+
+    if (isSavingRef.current || !currentDonation.isValid) {
       setScanResult({
         qrValue: '',
         nome: currentDonation.values.nome,
         quantidadeKg: currentDonation.values.quantidadeKg,
-        status: 'Preencha corretamente nome e quantidade doada.',
+        status: 'Preencha nome e quantidade antes de registrar o ingresso.',
         type: 'error',
       });
       return false;
     }
 
+    isSavingRef.current = true;
     setIsSaving(true);
     setScanResult({
       qrValue: ticketNumber,
@@ -58,6 +70,10 @@ function App() {
         status: 'Registro salvo com sucesso.',
         type: 'success',
       });
+      setNome('');
+      setQuantidadeKgInput('');
+      donationFieldsRef.current = { nome: '', quantidadeKgInput: '' };
+      window.setTimeout(() => nomeInputRef.current?.focus(), 0);
       return true;
     } catch (error) {
       setScanResult({
@@ -69,9 +85,22 @@ function App() {
       });
       return false;
     } finally {
+      isSavingRef.current = false;
       setIsSaving(false);
     }
-  }
+  }, []);
+
+  const handleInvalidScan = useCallback(() => {
+    const currentDonation = validateDonationFields(donationFieldsRef.current);
+
+    setScanResult({
+      qrValue: '',
+      nome: currentDonation.values.nome,
+      quantidadeKg: currentDonation.values.quantidadeKg,
+      status: 'QR Code inválido ou não reconhecido.',
+      type: 'error',
+    });
+  }, []);
 
   return (
     <main className="app-shell">
@@ -97,20 +126,13 @@ function App() {
             errors={donationValidation.errors}
             onNomeChange={setNome}
             onQuantidadeChange={setQuantidadeKgInput}
+            ref={nomeInputRef}
           />
 
           <Scanner
             disabled={!canStartScanner || isSaving}
             isSaving={isSaving}
-            onInvalidScan={() =>
-              setScanResult({
-                qrValue: '',
-                nome: donationValidation.values.nome,
-                quantidadeKg: donationValidation.values.quantidadeKg,
-                status: 'QR Code inválido ou não reconhecido.',
-                type: 'error',
-              })
-            }
+            onInvalidScan={handleInvalidScan}
             onScan={handleScan}
             onPermissionError={() =>
               setScanResult({
