@@ -156,12 +156,7 @@ export function findTicketOwnerInRows(rows, ticketNumber) {
   ));
 
   if (!row) {
-    return {
-      error: {
-        status: 404,
-        message: 'Ingresso não encontrado.',
-      },
-    };
+    return { nome: 'nome não encontrado' };
   }
 
   if (
