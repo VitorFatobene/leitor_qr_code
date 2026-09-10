@@ -36,7 +36,7 @@ function formatDateTime() {
 
 function getSheetRange(sheetName) {
   const safeSheetName = sheetName.replace(/'/g, "''");
-  return `'${safeSheetName}'!A:E`;
+  return `'${safeSheetName}'!A:G`;
 }
 
 function getWholeSheetRange(sheetName) {
@@ -134,7 +134,9 @@ export function getColumnIndex(headers, columnName) {
 export function findTicketOwnerInRows(rows, ticketNumber) {
   const headers = rows[0] || [];
   const nomeIndex = getColumnIndex(headers, 'nome');
-  const ticketCodeIndex = getColumnIndex(headers, 'codigo');
+  const matriculaIndex = getColumnIndex(headers, 'matricula');
+  const cursoIndex = getColumnIndex(headers, 'curso_ou_area');
+  const ticketCodeIndex = getColumnIndex(headers, 'codigo_ingresso');
   const situacaoIndex = getColumnIndex(headers, 'situacao');
 
   if (nomeIndex === -1 || ticketCodeIndex === -1) {
@@ -156,7 +158,11 @@ export function findTicketOwnerInRows(rows, ticketNumber) {
   ));
 
   if (!row) {
-    return { nome: 'nome não encontrado' };
+    return {
+      nome: 'nome não encontrado',
+      matricula: 'externo',
+      curso: '',
+    };
   }
 
   if (
@@ -172,6 +178,10 @@ export function findTicketOwnerInRows(rows, ticketNumber) {
   }
 
   const nome = String(row[nomeIndex] || '').trim().slice(0, 150);
+  const matricula = matriculaIndex === -1
+    ? 'externo'
+    : String(row[matriculaIndex] || '').trim() || 'externo';
+  const curso = cursoIndex === -1 ? '' : String(row[cursoIndex] || '').trim();
 
   if (!nome) {
     return {
@@ -182,7 +192,7 @@ export function findTicketOwnerInRows(rows, ticketNumber) {
     };
   }
 
-  return { nome };
+  return { nome, matricula, curso };
 }
 
 async function findTicketOwner({ sheets, spreadsheetId, dataSheetName, ticketNumber }) {
@@ -268,7 +278,17 @@ export default async function handler(request, response) {
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
       requestBody: {
-        values: [[date, time, ticketOwner.nome, parsedQuantidadeKg, ticketNumber]],
+        values: [
+          [
+            date,
+            time,
+            ticketOwner.nome,
+            parsedQuantidadeKg,
+            ticketNumber,
+            ticketOwner.matricula,
+            ticketOwner.curso,
+          ],
+        ],
       },
     });
 
@@ -276,6 +296,8 @@ export default async function handler(request, response) {
       success: true,
       message: 'Registro salvo com sucesso.',
       nome: ticketOwner.nome,
+      matricula: ticketOwner.matricula,
+      curso: ticketOwner.curso,
       ingresso: ticketNumber,
       quantidadeKg: parsedQuantidadeKg,
       saved: {
@@ -284,6 +306,8 @@ export default async function handler(request, response) {
         nome: ticketOwner.nome,
         quantidadeKg: parsedQuantidadeKg,
         qrValue: ticketNumber,
+        matricula: ticketOwner.matricula,
+        curso: ticketOwner.curso,
       },
     });
   } catch (error) {
