@@ -11,6 +11,7 @@ import handler, {
 const rows = [
   ['nome', 'matricula', 'curso_ou_area', 'codigo_ingresso', 'situacao'],
   ['Pessoa Encontrada', '000123', 'Engenharia', 'ABC1-DEF2-GHI3', 'ativo'],
+  ['', '', '', 'SEM-NOME', 'ativo'],
 ];
 
 test('mantém o fluxo atual quando o ingresso é encontrado', () => {
@@ -24,6 +25,10 @@ test('mantém o fluxo atual quando o ingresso é encontrado', () => {
 
 test('solicita dados manuais sem criar nome ou matrícula automáticos', () => {
   assert.deepEqual(findTicketOwnerInRows(rows, 'NAO-EXISTE'), { found: false });
+});
+
+test('solicita dados manuais quando o ingresso existe, mas o nome está vazio', () => {
+  assert.deepEqual(findTicketOwnerInRows(rows, 'SEM-NOME'), { found: false });
 });
 
 test('valida e limpa nome e matrícula manuais', () => {
@@ -94,7 +99,7 @@ function createResponse() {
   };
 }
 
-test('não grava antes do formulário e grava uma única linha após o envio manual', async () => {
+test('para ingresso sem nome, aguarda o formulário e grava uma única linha manual', async () => {
   const originalJwt = google.auth.JWT;
   const originalSheets = google.sheets;
   const originalEnv = {
@@ -131,13 +136,13 @@ test('não grava antes do formulário e grava uma única linha após o envio man
       method: 'POST',
       body: {
         quantidadeKg: 12.5,
-        qrValue: 'NAO-EXISTE',
+        qrValue: 'SEM-NOME',
       },
     }, firstResponse);
 
     assert.equal(firstResponse.statusCode, 200);
     assert.equal(firstResponse.body.requiresManualData, true);
-    assert.equal(firstResponse.body.ingresso, 'NAO-EXISTE');
+    assert.equal(firstResponse.body.ingresso, 'SEM-NOME');
     assert.equal(appendedRequests.length, 0);
 
     const manualResponse = createResponse();
@@ -145,7 +150,7 @@ test('não grava antes do formulário e grava uma única linha após o envio man
       method: 'POST',
       body: {
         quantidadeKg: 12.5,
-        qrValue: 'NAO-EXISTE',
+        qrValue: 'SEM-NOME',
         nome: '  João da Silva  ',
         matricula: '  123456789  ',
       },
@@ -157,7 +162,7 @@ test('não grava antes do formulário e grava uma única linha após o envio man
     assert.deepEqual(appendedRequests[0].requestBody.values[0].slice(2), [
       'João da Silva',
       12.5,
-      'NAO-EXISTE',
+      'SEM-NOME',
       "'123456789",
       '',
     ]);

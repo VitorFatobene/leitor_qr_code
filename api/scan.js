@@ -224,12 +224,7 @@ export function findTicketOwnerInRows(rows, ticketNumber) {
   const curso = cursoIndex === -1 ? '' : String(row[cursoIndex] || '').trim();
 
   if (!nome) {
-    return {
-      error: {
-        status: 500,
-        message: 'A aba de dados está configurada incorretamente.',
-      },
-    };
+    return { found: false };
   }
 
   return { found: true, nome, matricula, curso };
