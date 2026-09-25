@@ -7,6 +7,7 @@
     "dev": "vite",
     "vercel-dev": "npx vercel dev",
     "setup-env": "node scripts/setup-env.js",
+    "test": "node --test",
     "build": "vite build",
     "preview": "vite preview"
   },

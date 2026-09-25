@@ -1,6 +1,5 @@
 import { google } from 'googleapis';
 import { config } from 'dotenv';
-import { extrairNumeroIngresso } from '../src/services/tickets.js';
 
 config({ path: '.env.local', quiet: true });
 
@@ -127,6 +126,51 @@ function normalizeTicketNumber(value) {
   return String(value || '').trim().toUpperCase();
 }
 
+export function isValidTicketNumber(value) {
+  const ticketNumber = String(value || '').trim();
+  return ticketNumber.length > 0
+    && ticketNumber.length <= 150
+    && !/[\s/,]/.test(ticketNumber);
+}
+
+export function getManualRegistration(body = {}) {
+  const wasProvided = Object.prototype.hasOwnProperty.call(body, 'nome')
+    || Object.prototype.hasOwnProperty.call(body, 'matricula');
+
+  if (!wasProvided) {
+    return { wasProvided: false };
+  }
+
+  const nome = String(body.nome || '').trim().slice(0, 150);
+  const matricula = String(body.matricula || '').trim().slice(0, 150);
+
+  if (!nome || !matricula) {
+    return {
+      wasProvided: true,
+      error: 'Preencha nome e matrícula para salvar o registro.',
+    };
+  }
+
+  return {
+    wasProvided: true,
+    nome,
+    matricula,
+    curso: '',
+  };
+}
+
+export function buildSheetRow({ date, time, owner, quantidadeKg, ticketNumber }) {
+  return [
+    date,
+    time,
+    owner.nome,
+    quantidadeKg,
+    ticketNumber,
+    owner.isManual ? `'${owner.matricula}` : owner.matricula,
+    owner.curso,
+  ];
+}
+
 export function getColumnIndex(headers, columnName) {
   return headers.findIndex((header) => normalizeHeader(header) === columnName);
 }
@@ -158,11 +202,7 @@ export function findTicketOwnerInRows(rows, ticketNumber) {
   ));
 
   if (!row) {
-    return {
-      nome: 'nome não encontrado',
-      matricula: 'externo',
-      curso: '',
-    };
+    return { found: false };
   }
 
   if (
@@ -192,7 +232,7 @@ export function findTicketOwnerInRows(rows, ticketNumber) {
     };
   }
 
-  return { nome, matricula, curso };
+  return { found: true, nome, matricula, curso };
 }
 
 async function findTicketOwner({ sheets, spreadsheetId, dataSheetName, ticketNumber }) {
@@ -216,23 +256,23 @@ export default async function handler(request, response) {
     return sendError(response, 405, 'Método não permitido.');
   }
 
-  const {
-    quantidadeKg,
-    qrValue,
-  } = request.body || {};
+  const requestBody = request.body || {};
+  const { quantidadeKg, qrValue } = requestBody;
 
   const parsedQuantidadeKg = Number(quantidadeKg);
-  const cleanQrValue = String(qrValue || '').trim();
-  const ticketNumber = cleanQrValue.includes('/check-in/')
-    ? extrairNumeroIngresso(cleanQrValue)
-    : cleanQrValue;
+  const ticketNumber = String(qrValue || '').trim();
+  const manualRegistration = getManualRegistration(requestBody);
 
-  if (!ticketNumber) {
+  if (!isValidTicketNumber(ticketNumber)) {
     return sendError(response, 400, 'Requisição inválida.');
   }
 
   if (!Number.isFinite(parsedQuantidadeKg) || parsedQuantidadeKg <= 0) {
     return sendError(response, 400, 'Preencha corretamente a quantidade doada.');
+  }
+
+  if (manualRegistration.error) {
+    return sendError(response, 400, manualRegistration.error);
   }
 
   try {
@@ -270,7 +310,33 @@ export default async function handler(request, response) {
       );
     }
 
+    if (!ticketOwner.found && !manualRegistration.wasProvided) {
+      return response.status(200).json({
+        success: false,
+        requiresManualData: true,
+        message: 'Usuário não encontrado.',
+        ingresso: ticketNumber,
+        quantidadeKg: parsedQuantidadeKg,
+      });
+    }
+
+    const registrationOwner = ticketOwner.found
+      ? ticketOwner
+      : {
+          nome: manualRegistration.nome,
+          matricula: manualRegistration.matricula,
+          curso: '',
+          isManual: true,
+        };
+
     const { date, time } = formatDateTime();
+    const sheetRow = buildSheetRow({
+      date,
+      time,
+      owner: registrationOwner,
+      quantidadeKg: parsedQuantidadeKg,
+      ticketNumber,
+    });
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: spreadsheetConfig.spreadsheetId,
@@ -278,36 +344,26 @@ export default async function handler(request, response) {
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
       requestBody: {
-        values: [
-          [
-            date,
-            time,
-            ticketOwner.nome,
-            parsedQuantidadeKg,
-            ticketNumber,
-            ticketOwner.matricula,
-            ticketOwner.curso,
-          ],
-        ],
+        values: [sheetRow],
       },
     });
 
     return response.status(200).json({
       success: true,
       message: 'Registro salvo com sucesso.',
-      nome: ticketOwner.nome,
-      matricula: ticketOwner.matricula,
-      curso: ticketOwner.curso,
+      nome: registrationOwner.nome,
+      matricula: registrationOwner.matricula,
+      curso: registrationOwner.curso,
       ingresso: ticketNumber,
       quantidadeKg: parsedQuantidadeKg,
       saved: {
         date,
         time,
-        nome: ticketOwner.nome,
+        nome: registrationOwner.nome,
         quantidadeKg: parsedQuantidadeKg,
         qrValue: ticketNumber,
-        matricula: ticketOwner.matricula,
-        curso: ticketOwner.curso,
+        matricula: registrationOwner.matricula,
+        curso: registrationOwner.curso,
       },
     });
   } catch (error) {

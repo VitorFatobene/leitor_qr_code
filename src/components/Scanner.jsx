@@ -5,11 +5,19 @@ import { extrairNumeroIngresso } from '../services/tickets.js';
 const READER_ID = 'qr-reader';
 const DUPLICATE_DELAY_MS = 3000;
 
-function Scanner({ disabled, isSaving, onInvalidScan, onScan, onPermissionError }) {
+function Scanner({
+  disabled,
+  isManualEntryPending,
+  isSaving,
+  onInvalidScan,
+  onScan,
+  onPermissionError,
+}) {
   const scannerRef = useRef(null);
   const onInvalidScanRef = useRef(onInvalidScan);
   const onPermissionErrorRef = useRef(onPermissionError);
   const onScanRef = useRef(onScan);
+  const isManualEntryPendingRef = useRef(isManualEntryPending);
   const lastReadRef = useRef({ value: '', time: 0 });
   const scanLockRef = useRef(false);
   const [isRunning, setIsRunning] = useState(false);
@@ -25,7 +33,8 @@ function Scanner({ disabled, isSaving, onInvalidScan, onScan, onPermissionError 
     onInvalidScanRef.current = onInvalidScan;
     onPermissionErrorRef.current = onPermissionError;
     onScanRef.current = onScan;
-  }, [onInvalidScan, onPermissionError, onScan]);
+    isManualEntryPendingRef.current = isManualEntryPending;
+  }, [isManualEntryPending, onInvalidScan, onPermissionError, onScan]);
 
   async function stopScanner() {
     if (!scannerRef.current) {
@@ -79,6 +88,10 @@ function Scanner({ disabled, isSaving, onInvalidScan, onScan, onPermissionError 
   }
 
   async function handleDecodedText(decodedText) {
+    if (isManualEntryPendingRef.current) {
+      return;
+    }
+
     const ticketNumber = extrairNumeroIngresso(decodedText);
 
     if (!ticketNumber) {
