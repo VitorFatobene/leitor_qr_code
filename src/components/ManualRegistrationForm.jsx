@@ -1,16 +1,18 @@
 function ManualRegistrationForm({
+  curso,
   errors,
   isSaving,
   matricula,
   nome,
   onCancel,
+  onCursoChange,
   onMatriculaChange,
   onNomeChange,
   onSubmit,
 }) {
   return (
     <form className="manual-registration" onSubmit={onSubmit}>
-      <h3>Usuário não encontrado digite o nome e matricula manualmente</h3>
+      <h3>Usuário não encontrado digite o nome, matrícula e curso manualmente</h3>
 
       <label>
         <span>Nome</span>
@@ -37,6 +39,19 @@ function ManualRegistrationForm({
           required
         />
         {errors.matricula && <small className="field-error">{errors.matricula}</small>}
+      </label>
+
+      <label>
+        <span>Curso</span>
+        <input
+          type="text"
+          value={curso}
+          onChange={(event) => onCursoChange(event.target.value)}
+          disabled={isSaving}
+          maxLength={150}
+          required
+        />
+        {errors.curso && <small className="field-error">{errors.curso}</small>}
       </label>
 
       <div className="manual-registration-actions">

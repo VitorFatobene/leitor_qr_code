@@ -135,7 +135,8 @@ export function isValidTicketNumber(value) {
 
 export function getManualRegistration(body = {}) {
   const wasProvided = Object.prototype.hasOwnProperty.call(body, 'nome')
-    || Object.prototype.hasOwnProperty.call(body, 'matricula');
+    || Object.prototype.hasOwnProperty.call(body, 'matricula')
+    || Object.prototype.hasOwnProperty.call(body, 'curso');
 
   if (!wasProvided) {
     return { wasProvided: false };
@@ -143,11 +144,12 @@ export function getManualRegistration(body = {}) {
 
   const nome = String(body.nome || '').trim().slice(0, 150);
   const matricula = String(body.matricula || '').trim().slice(0, 150);
+  const curso = String(body.curso || '').trim().slice(0, 150);
 
-  if (!nome || !matricula) {
+  if (!nome || !matricula || !curso) {
     return {
       wasProvided: true,
-      error: 'Preencha nome e matrícula para salvar o registro.',
+      error: 'Preencha nome, matrícula e curso para salvar o registro.',
     };
   }
 
@@ -155,7 +157,7 @@ export function getManualRegistration(body = {}) {
     wasProvided: true,
     nome,
     matricula,
-    curso: '',
+    curso,
   };
 }
 
@@ -320,7 +322,7 @@ export default async function handler(request, response) {
       : {
           nome: manualRegistration.nome,
           matricula: manualRegistration.matricula,
-          curso: '',
+          curso: manualRegistration.curso,
           isManual: true,
         };
 

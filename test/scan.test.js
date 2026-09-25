@@ -31,29 +31,30 @@ test('solicita dados manuais quando o ingresso existe, mas o nome está vazio', 
   assert.deepEqual(findTicketOwnerInRows(rows, 'SEM-NOME'), { found: false });
 });
 
-test('valida e limpa nome e matrícula manuais', () => {
+test('valida e limpa nome, matrícula e curso manuais', () => {
   assert.deepEqual(getManualRegistration({
     nome: '  João da Silva  ',
     matricula: '  123456789  ',
+    curso: '  Sistemas de Informação  ',
   }), {
     wasProvided: true,
     nome: 'João da Silva',
     matricula: '123456789',
-    curso: '',
+    curso: 'Sistemas de Informação',
   });
 
-  assert.equal(getManualRegistration({ nome: '   ', matricula: '' }).error,
-    'Preencha nome e matrícula para salvar o registro.');
+  assert.equal(getManualRegistration({ nome: '   ', matricula: '', curso: '' }).error,
+    'Preencha nome, matrícula e curso para salvar o registro.');
 });
 
-test('monta a linha manual preservando quantidade, ingresso e curso vazio', () => {
+test('monta a linha manual com o curso na coluna G', () => {
   const row = buildSheetRow({
     date: '24/09/2026',
     time: '10:30:00',
     owner: {
       nome: 'João da Silva',
       matricula: '123456789',
-      curso: '',
+      curso: 'Sistemas de Informação',
       isManual: true,
     },
     quantidadeKg: 12.5,
@@ -67,7 +68,7 @@ test('monta a linha manual preservando quantidade, ingresso e curso vazio', () =
     12.5,
     'ABC1-DEF2-GHI3',
     "'123456789",
-    '',
+    'Sistemas de Informação',
   ]);
 });
 
@@ -153,6 +154,7 @@ test('para ingresso sem nome, aguarda o formulário e grava uma única linha man
         qrValue: 'SEM-NOME',
         nome: '  João da Silva  ',
         matricula: '  123456789  ',
+        curso: '  Sistemas de Informação  ',
       },
     }, manualResponse);
 
@@ -164,7 +166,7 @@ test('para ingresso sem nome, aguarda o formulário e grava uma única linha man
       12.5,
       'SEM-NOME',
       "'123456789",
-      '',
+      'Sistemas de Informação',
     ]);
   } finally {
     google.auth.JWT = originalJwt;

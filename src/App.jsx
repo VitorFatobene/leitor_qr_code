@@ -25,6 +25,7 @@ function App() {
   const [manualEntry, setManualEntry] = useState(null);
   const [manualNome, setManualNome] = useState('');
   const [manualMatricula, setManualMatricula] = useState('');
+  const [manualCurso, setManualCurso] = useState('');
   const [manualErrors, setManualErrors] = useState({});
   const donationValidation = validateDonationFields({ quantidadeKgInput });
   const canStartScanner = donationValidation.isValid;
@@ -121,6 +122,7 @@ function App() {
     setManualEntry(null);
     setManualNome('');
     setManualMatricula('');
+    setManualCurso('');
     setManualErrors({});
   }, []);
 
@@ -133,6 +135,7 @@ function App() {
 
     const nome = manualNome.trim();
     const matricula = manualMatricula.trim();
+    const curso = manualCurso.trim();
     const errors = {};
 
     if (!nome) {
@@ -141,6 +144,10 @@ function App() {
 
     if (!matricula) {
       errors.matricula = 'Informe a matrícula.';
+    }
+
+    if (!curso) {
+      errors.curso = 'Informe o curso.';
     }
 
     if (Object.keys(errors).length > 0) {
@@ -165,6 +172,7 @@ function App() {
         qrValue: manualEntry.qrValue,
         nome,
         matricula,
+        curso,
       });
 
       setScanResult({
@@ -190,7 +198,7 @@ function App() {
       isSavingRef.current = false;
       setIsSaving(false);
     }
-  }, [clearManualEntry, manualEntry, manualMatricula, manualNome]);
+  }, [clearManualEntry, manualCurso, manualEntry, manualMatricula, manualNome]);
 
   const handleManualCancel = useCallback(() => {
     clearManualEntry();
@@ -264,10 +272,12 @@ function App() {
             <ManualRegistrationForm
               nome={manualNome}
               matricula={manualMatricula}
+              curso={manualCurso}
               errors={manualErrors}
               isSaving={isSaving}
               onNomeChange={setManualNome}
               onMatriculaChange={setManualMatricula}
+              onCursoChange={setManualCurso}
               onSubmit={handleManualSubmit}
               onCancel={handleManualCancel}
             />
